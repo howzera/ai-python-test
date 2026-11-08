@@ -17,6 +17,8 @@ from app.infrastructure.notifications.rate_limiter import SlidingWindowRateLimit
 from app.infrastructure.persistence.in_memory_request_repository import InMemoryRequestRepository
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+# httpx logs every request at INFO: too noisy under load.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def create_app(settings: Settings | None = None, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:

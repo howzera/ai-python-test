@@ -92,7 +92,7 @@ flowchart LR
 | 4xx del proveedor (401, 422) | `failed`, sin reintentar: repetir daría el mismo error |
 | Cualquier error inesperado | `failed` con motivo `internal_error`: nunca se queda en `processing` |
 
-**Rate limiter propio (ventana deslizante, 48 cada 10 s).** El proveedor permite 50 cada 10 s. Esperar un hueco es más barato que recibir un 429 y reintentar. En la prueba de carga: **0 respuestas 429**.
+**Rate limiter propio (ventana deslizante, 48 cada 10 s).** El proveedor permite 50 cada 10 s. Esperar un hueco es más barato que recibir un 429 y reintentar. En la prueba de carga hubo **1 respuesta 429 en unos 2.500 envíos**, y el reintento la resolvió.
 
 **Bulkhead hacia la IA.** Un semáforo limita a 100 las llamadas simultáneas a la IA, para no saturar un recurso lento y caro.
 
@@ -118,10 +118,10 @@ El texto del usuario va como último mensaje y sin envolver: el mock lee solo es
 | Peticiones HTTP fallidas | **0 %** (0 de 8.235) |
 | Latencia media / p95 | **0,78 ms / 1,33 ms** |
 | Throughput | 198 req/s |
-| Llamadas a la IA por `/process` | **≈ 1** (sin llamadas duplicadas) |
-| Respuestas 429 del proveedor | **0** |
+| Llamadas a la IA por `/process` | **1,001** (2.788 llamadas para 2.785 peticiones) |
+| Respuestas 429 del proveedor | **1** de unos 2.500 envíos, resuelta con reintento |
 
-Resultado del procesamiento: todas las variaciones de formato del mock se recuperan. Solo terminan en `failed` las negativas de la IA (≈ 10 % por diseño del mock).
+Resultado final, cuando la cola se vació: **2.500 `sent` y 285 `failed`**, ninguna petición atascada. Todas las variaciones de formato del mock se recuperan; los 285 fallos son negativas de la IA (≈ 10 % por diseño del mock).
 
 **El cuello de botella es el proveedor de notificaciones** (5 por segundo). k6 crea unas 66 peticiones por segundo, así que la cola crece durante la prueba y se vacía después, a 4,8 envíos/s. La API sigue respondiendo en milisegundos porque no espera al envío.
 

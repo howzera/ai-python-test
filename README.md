@@ -74,8 +74,8 @@ flowchart LR
 **Idempotencia.** Solo una petición en `queued` arranca el pipeline. Llamar a `/process` otra vez devuelve el estado actual (202 si sigue en curso, 200 si terminó) sin volver a llamar a la IA. Comprobar y cambiar el estado ocurre sin ningún `await` en medio, así que dos llamadas simultáneas no pueden arrancarlo dos veces. Con Redis sería un `SET NX` atómico.
 
 **Dos capas de defensa ante la respuesta de la IA.**
-1. *Parser* (infraestructura) — arregla el **formato**: bloques Markdown, texto alrededor del JSON, comillas simples, claves sin comillas, JSON truncado y nombres de clave alternativos (`Recipient`, `body`, `channel`, `destination`...). Usa `json.loads` y, como alternativa, `ast.literal_eval`, que solo construye literales y nunca ejecuta código.
-2. *Guardrails* (dominio) — validan el **contenido**:
+1. *Parser* (infraestructura): arregla el **formato**. Corrige bloques Markdown, texto alrededor del JSON, comillas simples, claves sin comillas, JSON truncado y nombres de clave alternativos (`Recipient`, `body`, `channel`, `destination`...). Usa `json.loads` y, como alternativa, `ast.literal_eval`, que solo construye literales y nunca ejecuta código.
+2. *Guardrails* (dominio): validan el **contenido**:
    - el destinatario **tiene que aparecer en el texto original** (protege de alucinaciones y de *prompt injection* que cambie el destino);
    - email o teléfono con formato válido y coherente con el `type`;
    - mensaje no vacío y con longitud máxima.

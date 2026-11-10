@@ -10,27 +10,89 @@ POST /v1/requests/{id}/process                          -> 202 {"id", "status": 
 GET  /v1/requests/{id}                                  -> 200 {"id", "status": "queued|processing|sent|failed"}
 ```
 
-## Ejecución
+## Guía rápida: ejecución y pruebas
 
-Requisitos: Docker.
+### Puertos en localhost
 
-```bash
-docker-compose up -d provider influxdb grafana   # mock de IA + notificaciones, métricas
-docker-compose up -d --build app                 # este servicio, en el puerto 5000
-docker-compose run --rm load-test                # prueba de carga k6
-# Scorecard: http://localhost:3000/d/ia-performance-scorecard/
-```
+| Puerto | Servicio |
+|---|---|
+| **5000** | Este servicio (`app`, comparte red con `provider`) |
+| **3001** | Mock de IA y notificaciones (`provider`) |
+| **3000** | Grafana (scorecard de k6) |
+| - | InfluxDB: solo red interna de Docker, no se publica |
 
-Sin Docker (Python 3.12), con el provider levantado:
+> **Para evitar conflictos de puertos:** la [API de productos similares](https://github.com/howzera/backendDevTest) usa también 5000, 3001 y 3000. Con la configuración por defecto, no levantes los dos a la vez: ejecuta `docker-compose down` en uno antes de arrancar el otro. El [frontend](https://github.com/howzera/itx-frontend-test) usa el 5173 y no choca con ninguno.
+>
+> Para tener los dos a la vez, crea un fichero local `docker-compose.local.yml` que solo cambia los puertos publicados en el host (dentro de Docker siguen siendo 5000 y 3001, como pide el enunciado):
+> ```yaml
+> services:
+>   provider:
+>     ports: !override
+>       - "3002:3001"
+>       - "5001:5000"
+>   grafana:
+>     ports: !override
+>       - "3003:3000"
+> ```
+> y añade `-f docker-compose.yaml -f docker-compose.local.yml` a cada comando `docker-compose`. Este servicio queda en http://localhost:5001 y su Grafana en http://localhost:3003.
 
-```bash
-python -m venv .venv && .venv/Scripts/activate    # Linux/macOS: source .venv/bin/activate
-pip install -r requirements-dev.txt
-uvicorn app.main:app --port 5000
-pytest                                            # 76 tests, < 1 s, sin red
-```
+### Paso a paso
 
-Swagger: http://localhost:5000/docs
+1. **Iniciar Docker Desktop** y esperar a que esté en marcha.
+2. **Clonar y entrar en la carpeta:**
+   ```bash
+   git clone https://github.com/howzera/ai-python-test.git
+   cd ai-python-test
+   ```
+3. **Ejecutar los tests** (Python 3.12, sin Docker ni red):
+   ```bash
+   python -m venv .venv && .venv/Scripts/activate    # Linux/macOS: source .venv/bin/activate
+   pip install -r requirements-dev.txt
+   pytest -q                                          # esperado: 76 passed
+   ```
+4. **Levantar el mock, InfluxDB y Grafana.** InfluxDB es **obligatorio**: el mock escribe sus métricas en él de forma síncrona y, sin él, deja de responder.
+   ```bash
+   docker-compose up -d provider influxdb grafana
+   ```
+5. **Levantar el servicio (puerto 5000):**
+   ```bash
+   docker-compose up -d --build app
+   ```
+6. **Probar el flujo** desde Swagger (http://localhost:5000/docs) o con `curl`:
+   ```bash
+   curl -X POST http://localhost:5000/v1/requests -H "Content-Type: application/json" \
+        -d '{"user_input": "Manda un mail a feda@test.com diciendo hola"}'
+   curl -X POST http://localhost:5000/v1/requests/{id}/process
+   curl http://localhost:5000/v1/requests/{id}
+   ```
+
+   | # | Acción | Resultado esperado | Qué demuestra |
+   |---|---|---|---|
+   | 1 | `POST /v1/requests` | **201** `{id}`; estado `queued` | Alta de la petición |
+   | 2 | `POST /v1/requests/{id}/process` | **202** `processing` al instante | No espera a la IA (1,5–3 s) |
+   | 3 | Repetir el paso 2 enseguida | **202** `processing` | Idempotente: no arranca otro pipeline |
+   | 4 | `GET /v1/requests/{id}` tras ~5 s | **200** `sent` | IA → parser → guardrails → rate limiter → notify |
+   | 5 | Repetir el paso 2 | **200** `sent` | No vuelve a llamar a la IA |
+   | 6 | `GET /v1/requests/no-existe` | **404** | Id inexistente |
+   | 7 | `POST` con `{"user_input": "   "}` | **422** | Validación de entrada |
+
+7. **Probar distintos textos** (`user_input`), siguiendo los pasos 1, 2 y 4:
+
+   | `user_input` | Estado final | Qué demuestra |
+   |---|---|---|
+   | `Avisar por SMS al 600-111-222 que la reserva ha sido confirmada.` | `sent` | SMS, teléfono normalizado |
+   | `Dile a juan@test.com que la reunion es a las 5` | `sent` | Tipo deducido del destino |
+   | `Manda un mensaje diciendo hola` | `failed` (`ai_refused`) | Sin destinatario: negativa, sin reintento |
+
+   El motivo de cada resultado está en el log: `docker-compose logs app | grep -E "failed reason|sent channel"`.
+8. **Prueba de carga k6:**
+   ```bash
+   docker-compose run --rm load-test
+   ```
+   Scorecard en Grafana: http://localhost:3000/d/ia-performance-scorecard/. Tras la prueba, la cola tarda unos minutos en vaciarse: el proveedor solo acepta 5 notificaciones por segundo.
+9. **Parar todo:** `docker-compose down`
+
+> En Windows PowerShell, usa `curl.exe` en lugar de `curl`, o Swagger.
 
 ## Arquitectura hexagonal
 

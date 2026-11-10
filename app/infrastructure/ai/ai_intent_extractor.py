@@ -16,9 +16,8 @@ logger = logging.getLogger(__name__)
 class AiIntentExtractor:
     """IntentExtractor adapter for the AI engine (/v1/ai/extract).
 
-    Two kinds of retry, on purpose:
-    - transport retry (network, timeout, 429, 5xx) with exponential backoff;
-    - one extra call if the answer is unreadable. A refusal is NOT retried: we respect it.
+    Transport errors (network, timeout, 429, 5xx) are retried with backoff. An unreadable
+    answer gets one extra call; a refusal is not retried.
     """
 
     def __init__(

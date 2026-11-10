@@ -2,8 +2,7 @@ from app.domain.models import NotificationRequest
 
 
 class InMemoryRequestRepository:
-    """RequestRepository in a dict. Lost on restart and not shared between replicas:
-    fine for this test, Redis or a database in production."""
+    """RequestRepository backed by a dict (not persistent, not shared between replicas)."""
 
     def __init__(self) -> None:
         self._requests: dict[str, NotificationRequest] = {}

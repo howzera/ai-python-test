@@ -11,9 +11,8 @@ logger = logging.getLogger(__name__)
 class ProcessNotificationRequest:
     """Use case: extract -> validate -> send, in the background.
 
-    `execute` only accepts the work and returns at once; the HTTP layer answers 202.
-    It is idempotent: only a 'queued' request starts the pipeline, so calling
-    /process twice never calls the AI twice.
+    `execute` only accepts the work (the API answers 202). Only a 'queued' request
+    starts the pipeline, so calling /process twice never calls the AI twice.
     """
 
     def __init__(

@@ -1,4 +1,4 @@
-"""Prompt for the extraction. Versioned in code so it is reviewed and tested like code."""
+"""Extraction prompt and few-shot examples."""
 
 SYSTEM_PROMPT = """\
 You are an information extraction engine for a notification service.

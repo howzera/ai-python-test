@@ -7,9 +7,7 @@ from collections.abc import Awaitable, Callable
 class SlidingWindowRateLimiter:
     """Allows at most `max_calls` in any window of `period` seconds; extra callers wait.
 
-    The provider allows 50 notifications / 10 s and answers 429 above that. Waiting here
-    is cheaper than receiving a 429 and retrying. Callers are served in arrival order
-    because they queue on the lock.
+    Callers are served in arrival order because they queue on the lock.
     """
 
     def __init__(

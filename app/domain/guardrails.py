@@ -1,7 +1,6 @@
-"""Business guardrails: decide if what the AI extracted is safe and valid to send.
+"""Business guardrails: decide if the extracted data is safe and valid to send.
 
-Pure functions, no I/O: easy to test and to explain. The AI is treated as an
-untrusted source; the original user text is the source of truth.
+The AI is untrusted; the original user text is the source of truth.
 """
 
 import re
@@ -36,8 +35,7 @@ def validate_intent(intent: ExtractedIntent, user_input: str) -> Notification:
 
     to = normalize_destination(intent.to) if intent.to else None
     if to is None:
-        # The AI omitted the recipient. Take it from the user text only if it is unambiguous:
-        # we copy what the user wrote, we never guess.
+        # Recipient missing: copy it from the user text only if it is unambiguous.
         if len(candidates) != 1:
             raise GuardrailViolationError("missing_destination")
         to = next(iter(candidates))

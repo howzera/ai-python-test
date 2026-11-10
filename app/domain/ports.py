@@ -5,7 +5,7 @@ from app.domain.models import ExtractedIntent, Notification, NotificationRequest
 
 
 class RequestRepository(Protocol):
-    """Output port: where requests are stored (memory today, Redis or a database tomorrow)."""
+    """Output port: request storage."""
 
     async def add(self, request: NotificationRequest) -> None: ...
 
@@ -30,6 +30,6 @@ class NotificationSender(Protocol):
 
 
 class JobScheduler(Protocol):
-    """Output port: runs work after the HTTP response (asyncio tasks today, a queue tomorrow)."""
+    """Output port: runs work after the HTTP response."""
 
     def submit(self, job: Callable[[], Awaitable[None]]) -> None: ...

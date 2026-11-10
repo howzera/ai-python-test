@@ -1,9 +1,8 @@
 """Turns the raw text of the AI into an ExtractedIntent.
 
-LLMs do not always follow the format. This parser tolerates what the mock (and real
-models) return: markdown fences, text around the JSON, single quotes, unquoted keys,
-truncated JSON, other key names and extra keys. It only fixes the FORMAT; whether the
-data is valid is decided later by the domain guardrails.
+Tolerates markdown fences, text around the JSON, single quotes, unquoted keys,
+truncated JSON and alternative key names. Only the format is fixed here; the data
+is validated by the domain guardrails.
 """
 
 import ast

@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 class AsyncioJobScheduler:
     """JobScheduler with asyncio tasks in the same process.
 
-    Simple and fast for this test. Limit: pending jobs are lost if the process restarts.
-    In production: a durable queue (Redis Streams, SQS, RabbitMQ) and separate workers.
+    Pending jobs are lost if the process restarts (production: a durable queue).
     """
 
     def __init__(self) -> None:
